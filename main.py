@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import argparse
 import os
 import sys
 from oauth2client.client import flow_from_clientsecrets, FlowExchangeError
@@ -23,39 +24,50 @@ from oauth2client.client import flow_from_clientsecrets, FlowExchangeError
 from email_oauth2 import EmailSender
 from config import Config, Settings
 
-if __name__ == '__main__':
-    def get_value(prompt, default=''):
-        if default:
-            prompt += ' (' + str(default) + ')'
-        prompt += ': '
-        value = input(prompt).strip()
-        if not value:
-            return default
-        return value
+def prompt_value(prompt, default=''):
+    if default:
+        prompt += ' (' + str(default) + ')'
+    prompt += ': '
+    value = input(prompt).strip()
+    if not value:
+        return default
+    return value
 
+def prompt_for_settings():
+    settings = Settings()
+    settings.user_email = prompt_value('Enter the email')
+    assert '@' in settings.user_email
+    settings.smtp_server = prompt_value(
+        'Enter the SMTP server',
+        'smtp.' + settings.user_email.split('@')[1])
+    settings.smtp_port = prompt_value('Enter the SMTP port', 587)
+    return settings
+
+def prompt_for_secrets():
+    print('Enter the oauth2 secrets as a json string')
+    print('(eg visit https://console.developers.google.com)')
+    return input('Copy+paste here: ')
+
+########
+# Main #
+########
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    sys.exit()
+    
     cfg = Config()
     try:
         settings = cfg.get_settings()
     except FileNotFoundError:
         # Get the basic server settings
         print('Settings not found under: %s' % cfg.get_settings_path())
-        settings = Settings()
-        settings.user_email = get_value('Enter the email')
-        assert '@' in settings.user_email
-        settings.smtp_server = get_value(
-            'Enter the SMTP server',
-            'smtp.' + settings.user_email.split('@')[1])
-        settings.smtp_port = get_value('Enter the SMTP port', 587)
-
+        settings = prompt_for_settings()
         cfg.put_settings(settings)
-        settings = cfg.get_settings()
-
         # Now get the oauth access creds
-        print('Enter the oauth2 secrets as a json string')
-        print('(eg visit https://console.developers.google.com)')
-        secrets = input('Copy+paste here: ')
-        with open(cfg.get_secrets_path(), 'w') as file:
-            file.write(secrets)
+        secrets = prompt_for_secrets()
+        cfg.put_secrets(secrets)
 
     try:
         creds = config.get_oauth_creds()

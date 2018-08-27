@@ -69,6 +69,10 @@ class Config:
     def get_secrets_path(self):
         return os.path.join(self.path, 'client_secret.json')
 
+    def put_secrets(self, secrets):
+        with open(self.get_secrets_path(), 'w') as file:
+            file.write(secrets)
+
     def get_oauth_storage(self):
         storage_path = os.path.join(self.path, 'creds.storage')
         return Store(storage_path)
