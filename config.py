@@ -75,7 +75,7 @@ class Config:
 
     def get_oauth_storage(self):
         storage_path = os.path.join(self.path, 'creds.storage')
-        return Store(storage_path)
+        return Storage(storage_path)
 
     def get_oauth_creds(self):
         storage = self.get_oauth_storage()

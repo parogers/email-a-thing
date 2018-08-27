@@ -24,6 +24,9 @@ from oauth2client.client import flow_from_clientsecrets, FlowExchangeError
 from email_oauth2 import EmailSender
 from config import Config, Settings
 
+REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'
+OAUTH_SCOPE = 'https://mail.google.com/'
+
 def prompt_value(prompt, default=''):
     if default:
         prompt += ' (' + str(default) + ')'
@@ -54,9 +57,19 @@ def prompt_for_secrets():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('recipient', help='Email recipient')
+    parser.add_argument('subject', help='Email subject line')
+    parser.add_argument('--body', help='Email body (leave off option to read from stdin)', default=None)
+    parser.add_argument('--test', help='Test program settings, but don\'t send anything')
 
-    sys.exit()
-    
+    if '--test' in sys.argv: # TODO - this is not great
+        args = None
+    else:
+        args = parser.parse_args(sys.argv[1:])
+
+    if args and args.body == None:
+        args.body = sys.stdin.read()
+
     cfg = Config()
     try:
         settings = cfg.get_settings()
@@ -70,29 +83,36 @@ if __name__ == '__main__':
         cfg.put_secrets(secrets)
 
     try:
-        creds = config.get_oauth_creds()
+        creds = cfg.get_oauth_creds()
     except FileNotFoundError:
         # Obtain access credentials
-        flow = flow_from_clientsecrets(cfg.get_secrets_path())
+        flow = flow_from_clientsecrets(
+            cfg.get_secrets_path(),
+            scope=OAUTH_SCOPE,
+            redirect_uri=REDIRECT_URI)
 
         print('Visit this URL:')
         print(flow.step1_get_authorize_url())
         print('')
-        
+
         code = input('Enter access code: ')
         creds = flow.step2_exchange(code)
-        config.put_oauth_creds(creds)
+        cfg.put_oauth_creds(creds)
+
+    if not args:
+        # Just testing the settings
+        sys.exit()
 
     access_token = creds.get_access_token().access_token
-
-    to_email = 'peter.rogers@gmail.com'
-    subject = 'Hello World'
-    body = 'This is just a test'
 
     print('Sending email...')
     sender = EmailSender(
         settings.smtp_server,
         settings.smtp_port,
         settings.user_email)
-    sender.send_email(access_token, to_email, subject, body)
+    sender.send_email(
+        access_token,
+        args.recipient,
+        args.subject,
+        args.body)
     print('Done')
